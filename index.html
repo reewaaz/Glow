@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Glow</title>
+    <title>Neon Nodes</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;700&display=swap');
 
@@ -14,39 +14,38 @@
             height: 100%;
             overflow: hidden;
             background-color: #0f0c29;
-            font-family: 'Comfortaa', cursive;
-            touch-action: none;
+            font-family: 'Comfortaa', sans-serif;
+            touch-action: none; /* Disables browser zooming/scrolling */
             -webkit-user-select: none;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #gameCanvas {
             display: block;
             width: 100%;
             height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
 
-        /* Glassmorphism UI */
+        /* UI Layer */
         #ui-layer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            pointer-events: none; /* Let clicks pass through to canvas */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: env(safe-area-inset-top) 20px 20px;
+            padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top)); /* Notch support */
             box-sizing: border-box;
-            z-index: 5;
-        }
-
-        .hud-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-top: 10px;
+            z-index: 10;
         }
 
         .score-box {
@@ -55,99 +54,92 @@
             -webkit-backdrop-filter: blur(10px);
             padding: 10px 25px;
             border-radius: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             text-align: center;
+            align-self: flex-start;
         }
 
         #score-label {
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.7);
-            letter-spacing: 1px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
             text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 2px;
         }
 
         #score {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 700;
-            background: linear-gradient(to right, #fff, #a0eaff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
 
-        /* Overlay */
+        /* Start Overlay */
         #overlay {
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, rgba(20, 20, 40, 0.9), #000);
+            background: radial-gradient(circle at center, #1a1a2e, #000);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
-            z-index: 100;
-            transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 999;
+            transition: opacity 0.5s ease;
         }
 
-        .title {
-            font-size: 3.5rem;
-            color: white;
-            margin-bottom: 10px;
+        #overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 3rem;
+            margin: 0 0 10px 0;
             text-align: center;
-            text-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+            text-shadow: 0 0 20px #00d2ff, 0 0 40px #3a7bd5;
         }
 
-        .subtitle {
-            color: #aaa;
+        p.subtitle {
+            color: #a2a2a2;
             font-size: 1.1rem;
-            margin-bottom: 40px;
+            margin-bottom: 50px;
+            text-align: center;
         }
 
-        .play-btn {
+        #startBtn {
             background: transparent;
-            border: 2px solid rgba(255,255,255,0.5);
-            padding: 20px 60px;
-            border-radius: 50px;
-            color: white;
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 18px 50px;
             font-size: 1.2rem;
-            font-family: inherit;
+            border-radius: 50px;
+            font-family: 'Comfortaa', sans-serif;
             font-weight: bold;
             cursor: pointer;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+            transition: transform 0.1s, border-color 0.3s, box-shadow 0.3s;
         }
 
-        .play-btn::before {
+        #startBtn::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #ff00cc, #3333ff);
-            opacity: 0.5;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            opacity: 0.2;
             z-index: -1;
-            transition: opacity 0.3s;
         }
 
-        .play-btn:hover {
-            transform: scale(1.05);
-            border-color: #fff;
-            box-shadow: 0 0 40px rgba(0,255,255,0.4);
-        }
-
-        .play-btn:active {
+        #startBtn:active {
             transform: scale(0.95);
+            background: rgba(255,255,255,0.1);
         }
 
-        .hidden {
-            opacity: 0;
-            pointer-events: none !important;
-        }
     </style>
 </head>
 <body>
@@ -155,347 +147,266 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-layer">
-        <div class="hud-top">
-            <div class="score-box">
-                <div id="score-label">Score</div>
-                <div id="score">0</div>
-            </div>
+        <div class="score-box">
+            <div id="score-label">Score</div>
+            <div id="score">0</div>
         </div>
     </div>
 
     <div id="overlay">
-        <h1 class="title">Neon Nodes</h1>
-        <p class="subtitle">Connect the lights. Relax your mind.</p>
-        <button class="play-btn" id="startBtn">START EXPERIENCE</button>
+        <h1>Neon Nodes</h1>
+        <p class="subtitle">Connect. Relax. Flow.</p>
+        <button id="startBtn">START</button>
     </div>
 
 <script>
-/** 
- * SYSTEM: AUDIO (Synthesizer & Sequencer)
- * Creates ambient pentatonic music and synthesized SFX
+/**
+ * AUDIO SYSTEM
+ * Robust implementation with try/catch to prevent game crashes.
  */
 const AudioSys = {
     ctx: null,
-    masterGain: null,
-    delayNode: null,
+    master: null,
+    delay: null,
     isInit: false,
     nextNoteTime: 0,
     
-    // Pentatonic scale (C Minor Pentatonic: C, Eb, F, G, Bb) + Octaves
-    scale: [
-        261.63, 311.13, 349.23, 392.00, 466.16, // Octave 4
-        523.25, 622.25, 698.46, 783.99, 932.33  // Octave 5
-    ],
+    // Pentatonic Scale frequencies
+    scale: [261.63, 311.13, 349.23, 392.00, 466.16, 523.25], 
 
     init() {
         if (this.isInit) return;
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-        
-        // Master Chain: Master -> Limiter -> Destination
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.4;
-        
-        // FX Chain: Delay for atmospheric depth
-        this.delayNode = this.ctx.createDelay();
-        this.delayNode.delayTime.value = 0.375; // synced delay
-        const delayFeedback = this.ctx.createGain();
-        delayFeedback.gain.value = 0.4;
-        const delayFilter = this.ctx.createBiquadFilter();
-        delayFilter.type = 'lowpass';
-        delayFilter.frequency.value = 1000;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return; // Audio not supported, play silent
+            
+            this.ctx = new AudioContext();
+            
+            // Master Volume
+            this.master = this.ctx.createGain();
+            this.master.gain.value = 0.3;
+            this.master.connect(this.ctx.destination);
 
-        this.delayNode.connect(delayFeedback);
-        delayFeedback.connect(delayFilter);
-        delayFilter.connect(this.delayNode);
-        this.delayNode.connect(this.masterGain);
+            // Delay Effect (Echo)
+            this.delay = this.ctx.createDelay();
+            this.delay.delayTime.value = 0.4;
+            const feedback = this.ctx.createGain();
+            feedback.gain.value = 0.3;
+            this.delay.connect(feedback);
+            feedback.connect(this.delay);
+            this.delay.connect(this.master);
 
-        this.masterGain.connect(this.ctx.destination);
-        this.isInit = true;
-        this.nextNoteTime = this.ctx.currentTime;
-        
-        this.scheduler();
-    },
-
-    // Generative Music Sequencer
-    scheduler() {
-        if (!this.isInit) return;
-        const lookahead = 0.1;
-        while (this.nextNoteTime < this.ctx.currentTime + lookahead) {
-            this.playAmbientNote(this.nextNoteTime);
-            // Random rhythm: sometimes slow, sometimes fast
-            this.nextNoteTime += Math.random() > 0.7 ? 0.25 : 0.5; 
+            this.isInit = true;
+            this.nextNoteTime = this.ctx.currentTime + 0.5;
+            this.schedule();
+            
+        } catch (e) {
+            console.warn("Audio init failed, playing silent mode.", e);
         }
-        requestAnimationFrame(() => this.scheduler());
     },
 
-    playAmbientNote(time) {
-        if(Math.random() > 0.6) return; // Leave some silence
-        
-        const osc = this.ctx.createOscillator();
-        const env = this.ctx.createGain();
-        
-        // Random note from scale
-        const freq = this.scale[Math.floor(Math.random() * this.scale.length)];
-        osc.frequency.value = freq;
-        osc.type = 'sine'; // Pure tone
-
-        env.gain.setValueAtTime(0, time);
-        env.gain.linearRampToValueAtTime(0.1, time + 0.1); // Slow attack
-        env.gain.exponentialRampToValueAtTime(0.001, time + 1.5); // Long release
-
-        osc.connect(env);
-        env.connect(this.masterGain);
-        env.connect(this.delayNode); // Send to delay
-        
-        osc.start(time);
-        osc.stop(time + 2);
+    resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(e => console.log(e));
+        }
     },
 
-    // SFX: Connection Pop
-    playTone(index, isConnect) {
+    schedule() {
         if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        // Schedule ahead
+        const lookahead = 0.1; 
         
-        // Higher pitch for longer chains
-        const baseFreq = 400;
-        const semitone = Math.pow(2, 1/12);
-        osc.frequency.setValueAtTime(baseFreq * Math.pow(semitone, index * 2), t);
-        osc.type = 'triangle'; 
+        // Safety break if tab is backgrounded
+        if (this.ctx.state === 'suspended') {
+            requestAnimationFrame(() => this.schedule());
+            return;
+        }
 
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.2, t + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-        osc.start(t);
-        osc.stop(t + 0.3);
+        while (this.nextNoteTime < this.ctx.currentTime + lookahead) {
+            this.playAmbient(this.nextNoteTime);
+            this.nextNoteTime += Math.random() * 2 + 1.5; // Slow ambient pace
+        }
+        requestAnimationFrame(() => this.schedule());
     },
 
-    playClearSound() {
+    playAmbient(time) {
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            // Random note
+            const freq = this.scale[Math.floor(Math.random() * this.scale.length)];
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.1, time + 1.0); // Slow attack
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 4.0); // Long release
+
+            osc.connect(gain);
+            gain.connect(this.master);
+            gain.connect(this.delay);
+            
+            osc.start(time);
+            osc.stop(time + 5.0);
+        } catch(e) {}
+    },
+
+    playPop(pitchIndex) {
         if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        // Sweep up "Magic" sound
-        osc.frequency.setValueAtTime(200, t);
-        osc.frequency.exponentialRampToValueAtTime(1200, t + 0.4);
-        osc.type = 'sine';
+        this.resume();
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            // Pitch goes up with chain length
+            const base = 400;
+            osc.frequency.setValueAtTime(base + (pitchIndex * 50), t);
+            osc.type = 'triangle';
 
-        gain.gain.setValueAtTime(0.3, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.4);
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
 
-        osc.connect(gain);
-        gain.connect(this.masterGain);
-        gain.connect(this.delayNode); // Echo the clear sound
-        osc.start(t);
-        osc.stop(t + 0.4);
+            osc.connect(gain);
+            gain.connect(this.master);
+            osc.start(t);
+            osc.stop(t + 0.3);
+        } catch(e) {}
+    },
+
+    playSuccess() {
+        if (!this.ctx) return;
+        try {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.frequency.setValueAtTime(300, t);
+            osc.frequency.linearRampToValueAtTime(800, t + 0.2);
+            osc.type = 'sine';
+
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.4);
+
+            osc.connect(gain);
+            gain.connect(this.master);
+            gain.connect(this.delay);
+            osc.start(t);
+            osc.stop(t + 0.4);
+        } catch(e) {}
     }
 };
 
 /**
- * SYSTEM: HAPTICS
- */
-const Haptics = {
-    tap() {
-        if (navigator.vibrate) navigator.vibrate(8); // Very light
-    },
-    success() {
-        if (navigator.vibrate) navigator.vibrate([10, 30, 20]); // Pattern
-    }
-};
-
-/**
- * GAME ENGINE
+ * GRAPHICS & GAME LOGIC
  */
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false }); // Optimization
+const ctx = canvas.getContext('2d', { alpha: false });
 const scoreEl = document.getElementById('score');
 
-// Config
+// Settings
 let dpr = window.devicePixelRatio || 1;
-let width, height;
-let COLS = 6;
-let ROWS = 8;
+let W, H;
+let COLS = 6, ROWS = 8;
 let TILE_SIZE = 0;
-let OFFSET_X = 0;
-let OFFSET_Y = 0;
+let OFF_X = 0, OFF_Y = 0;
 let time = 0;
 
-// Palettes (Neon Pastel)
 const THEMES = [
-    { color: '#FF72C0', glow: '#FF00A2', shadow: '#75004A' }, // Pink
-    { color: '#4DEEEA', glow: '#00FFF2', shadow: '#005753' }, // Cyan
-    { color: '#FFE700', glow: '#FF9900', shadow: '#8A5300' }, // Gold
-    { color: '#9D44F2', glow: '#6200EA', shadow: '#310075' }, // Purple
-    { color: '#74F263', glow: '#00E676', shadow: '#004D27' }  // Green
+    { c: '#ff0055', g: '#ff6b9d' }, // Red/Pink
+    { c: '#00eaff', g: '#80f4ff' }, // Cyan
+    { c: '#ffcc00', g: '#ffeeb0' }, // Gold
+    { c: '#aa00ff', g: '#dcaaff' }, // Purple
+    { c: '#00ff66', g: '#9effc5' }  // Green
 ];
 
+// State
 let grid = [];
 let particles = [];
-let bgParticles = []; // For the bokeh background
-let selectionChain = [];
+let chain = [];
 let isDragging = false;
 let score = 0;
+let isGameRunning = false;
 
-// Resize Handler
-function resize() {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.scale(dpr, dpr);
-    
-    // Logic dimensions
-    TILE_SIZE = Math.min(width / COLS, height / (ROWS + 1.5));
-    const gridW = TILE_SIZE * COLS;
-    const gridH = TILE_SIZE * ROWS;
-    OFFSET_X = (width - gridW) / 2;
-    OFFSET_Y = (height - gridH) / 2 + (TILE_SIZE * 0.2);
-}
-
-// Background Bokeh
-class Bokeh {
-    constructor() {
-        this.reset();
-        this.y = Math.random() * height; // Start anywhere
-    }
-    reset() {
-        this.x = Math.random() * width;
-        this.y = height + 50;
-        this.size = Math.random() * 80 + 20;
-        this.speed = Math.random() * 0.5 + 0.1;
-        this.hue = Math.random() * 60 + 220; // Blue/Purple range
-        this.alpha = Math.random() * 0.1 + 0.05;
-    }
-    update() {
-        this.y -= this.speed;
-        if (this.y < -100) this.reset();
-    }
-    draw(c) {
-        c.fillStyle = `hsla(${this.hue}, 70%, 50%, ${this.alpha})`;
-        c.beginPath();
-        c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        c.fill();
-    }
-}
-
-// Game Piece: Orb
+// Entities
 class Orb {
     constructor(c, r) {
-        this.c = c;
-        this.r = r;
+        this.c = c; this.r = r;
         this.type = Math.floor(Math.random() * THEMES.length);
-        
-        // Animation Physics
         this.x = c * TILE_SIZE + TILE_SIZE/2;
-        this.y = -TILE_SIZE; // Start off screen
-        this.targetY = r * TILE_SIZE + TILE_SIZE/2;
-        
+        this.y = -100; // Spawn high
+        this.ty = r * TILE_SIZE + TILE_SIZE/2;
+        this.vy = 0;
         this.scale = 1;
-        this.pulsePhase = Math.random() * Math.PI * 2;
-        this.vy = 0; // Vertical velocity
     }
-
     update() {
-        // Fall Physics
-        this.targetY = this.r * TILE_SIZE + TILE_SIZE/2;
-        const diff = this.targetY - this.y;
-        
-        if (Math.abs(diff) > 1) {
-            this.vy += 1.5; // Gravity
+        this.ty = this.r * TILE_SIZE + TILE_SIZE/2;
+        // Gravity / Physics
+        const dy = this.ty - this.y;
+        if (Math.abs(dy) > 1) {
+            this.vy += 1;
             this.y += this.vy;
-            // Floor bounce logic (damped)
-            if (this.y > this.targetY && this.vy > 0) {
-                this.y = this.targetY;
-                this.vy *= -0.4; // Bounce factor
-                if (Math.abs(this.vy) < 2) this.vy = 0;
+            // Floor bounce
+            if (this.y > this.ty) {
+                this.y = this.ty;
+                this.vy *= -0.3;
             }
         } else {
-            this.y = this.targetY;
+            this.y = this.ty;
             this.vy = 0;
         }
 
-        // Selection Pulse
-        if (selectionChain.includes(this)) {
+        // Selection effect
+        if (chain.includes(this)) {
             this.scale = 1.2 + Math.sin(time * 0.2) * 0.1;
         } else {
-            // Spring back to 1
             this.scale += (1 - this.scale) * 0.1;
         }
     }
-
     draw(c) {
+        const cx = this.x + OFF_X;
+        const cy = this.y + OFF_Y;
+        const r = (TILE_SIZE * 0.38) * this.scale;
         const theme = THEMES[this.type];
-        const cx = this.x + OFFSET_X;
-        const cy = this.y + OFFSET_Y;
-        const r = (TILE_SIZE * 0.4) * this.scale;
 
-        // Optimization: Don't draw if off screen
-        if (cy < -50 || cy > height + 50) return;
-
-        // 1. Glow (Simulated with arc, avoid shadowBlur for performance)
-        c.globalCompositeOperation = 'screen';
-        const gradGlow = c.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 1.5);
-        gradGlow.addColorStop(0, theme.glow);
-        gradGlow.addColorStop(1, 'rgba(0,0,0,0)');
-        c.fillStyle = gradGlow;
-        c.beginPath();
-        c.arc(cx, cy, r * 1.8, 0, Math.PI * 2);
-        c.fill();
-        c.globalCompositeOperation = 'source-over';
-
-        // 2. Main Body
-        const gradBody = c.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
-        gradBody.addColorStop(0, theme.color);
-        gradBody.addColorStop(1, theme.shadow);
+        // Glow
+        c.shadowBlur = 15;
+        c.shadowColor = theme.c;
         
-        c.fillStyle = gradBody;
+        // Core
+        c.fillStyle = theme.c;
         c.beginPath();
-        c.arc(cx, cy, r, 0, Math.PI * 2);
+        c.arc(cx, cy, r, 0, Math.PI*2);
         c.fill();
 
-        // 3. Specular Highlight (The "Glass" look)
-        c.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        // Highlight (Glass effect)
+        c.shadowBlur = 0;
+        c.fillStyle = 'rgba(255,255,255,0.5)';
         c.beginPath();
-        c.ellipse(cx - r*0.3, cy - r*0.35, r*0.25, r*0.15, Math.PI / 4, 0, Math.PI*2);
+        c.arc(cx - r*0.3, cy - r*0.3, r*0.25, 0, Math.PI*2);
         c.fill();
-
-        // 4. Rim Light (Bottom)
-        c.strokeStyle = 'rgba(255,255,255,0.15)';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.arc(cx, cy, r * 0.9, 0.5, Math.PI - 0.5);
-        c.stroke();
     }
 }
 
-// Visual FX
-class Spark {
+class Particle {
     constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 8 + 2;
-        this.vx = Math.cos(angle) * speed;
-        this.vy = Math.sin(angle) * speed;
+        this.x = x; this.y = y; this.color = color;
+        const a = Math.random() * 6.28;
+        const s = Math.random() * 5 + 2;
+        this.vx = Math.cos(a) * s;
+        this.vy = Math.sin(a) * s;
         this.life = 1;
-        this.decay = Math.random() * 0.03 + 0.02;
     }
     update() {
         this.x += this.vx;
         this.y += this.vy;
-        this.vy += 0.2; // Gravity
-        this.vx *= 0.95; // Drag
-        this.life -= this.decay;
+        this.vy += 0.2;
+        this.life -= 0.04;
     }
     draw(c) {
-        c.globalAlpha = this.life;
+        c.globalAlpha = Math.max(0, this.life);
         c.fillStyle = this.color;
         c.beginPath();
         c.arc(this.x, this.y, 4, 0, Math.PI*2);
@@ -504,726 +415,219 @@ class Spark {
     }
 }
 
-// Logic Functions
+// Core Functions
+function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    TILE_SIZE = Math.min(W / COLS, H / (ROWS + 2));
+    const gw = TILE_SIZE * COLS;
+    const gh = TILE_SIZE * ROWS;
+    OFF_X = (W - gw) / 2;
+    OFF_Y = (H - gh) / 2 + TILE_SIZE;
+}
+
 function initGrid() {
     grid = [];
-    for (let c = 0; c < COLS; c++) {
+    for(let c=0; c<COLS; c++){
         let col = [];
-        for (let r = 0; r < ROWS; r++) {
+        for(let r=0; r<ROWS; r++){
             col.push(new Orb(c, r));
         }
         grid.push(col);
     }
-    // Init BG particles
-    for(let i=0; i<20; i++) bgParticles.push(new Bokeh());
 }
 
-function getGridPos(px, py) {
-    const rx = px - OFFSET_X;
-    const ry = py - OFFSET_Y;
-    if (rx < 0 || rx > COLS * TILE_SIZE || ry < 0 || ry > ROWS * TILE_SIZE) return null;
+function getPos(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    // Map to grid
+    const rx = x - OFF_X;
+    const ry = y - OFF_Y;
+    
+    if (rx < 0 || rx > COLS*TILE_SIZE || ry < 0 || ry > ROWS*TILE_SIZE) return null;
+    
     return {
         c: Math.floor(rx / TILE_SIZE),
         r: Math.floor(ry / TILE_SIZE)
     };
 }
 
-// Input Handling
-function handleStart(x, y) {
+// Input Logic
+function inputStart(e) {
+    e.preventDefault();
+    if (!isGameRunning) return;
     isDragging = true;
-    const pos = getGridPos(x, y);
-    if (!pos) return;
+    AudioSys.resume();
     
-    const orb = grid[pos.c]?.[pos.r];
+    const p = getPos(e);
+    if (!p) return;
+    const orb = grid[p.c][p.r];
     if (orb) {
-        selectionChain = [orb];
-        AudioSys.playTone(0);
-        Haptics.tap();
+        chain = [orb];
+        AudioSys.playPop(0);
+        // Haptics
+        if(navigator.vibrate) navigator.vibrate(5);
     }
 }
 
-function handleMove(x, y) {
+function inputMove(e) {
+    e.preventDefault();
     if (!isDragging) return;
-    const pos = getGridPos(x, y);
-    if (!pos) return;
-
-    const orb = grid[pos.c]?.[pos.r];
+    
+    const p = getPos(e);
+    if (!p) return;
+    const orb = grid[p.c][p.r];
     if (!orb) return;
 
-    const last = selectionChain[selectionChain.length - 1];
+    const last = chain[chain.length-1];
     
-    // Backtrack (Undo)
-    if (selectionChain.length > 1 && selectionChain[selectionChain.length - 2] === orb) {
-        selectionChain.pop();
-        AudioSys.playTone(selectionChain.length - 1); // Play lower tone
-        Haptics.tap();
+    // Backtrack
+    if (chain.length > 1 && chain[chain.length-2] === orb) {
+        chain.pop();
+        AudioSys.playPop(chain.length);
         return;
     }
 
     // Connect
-    if (orb !== last && orb.type === last.type && !selectionChain.includes(orb)) {
-        // Adjacency check (including diagonals)
-        if (Math.abs(orb.c - last.c) <= 1 && Math.abs(orb.r - last.r) <= 1) {
-            selectionChain.push(orb);
-            AudioSys.playTone(selectionChain.length - 1);
-            Haptics.tap();
-            
-            // Add sparkle at connection
-            const cx = orb.x + OFFSET_X;
-            const cy = orb.y + OFFSET_Y;
-            particles.push(new Spark(cx, cy, '#fff'));
+    if (orb !== last && orb.type === last.type && !chain.includes(orb)) {
+        // Check adjacency (diagonal ok)
+        const dc = Math.abs(orb.c - last.c);
+        const dr = Math.abs(orb.r - last.r);
+        if (dc <= 1 && dr <= 1) {
+            chain.push(orb);
+            AudioSys.playPop(chain.length);
+            if(navigator.vibrate) navigator.vibrate(8);
         }
     }
 }
 
-function handleEnd() {
+function inputEnd(e) {
+    if(e && e.preventDefault) e.preventDefault();
     isDragging = false;
     
-    if (selectionChain.length >= 3) {
+    if (chain.length >= 3) {
         // Success
-        Haptics.success();
-        AudioSys.playClearSound();
-        
-        // Score Calculation
-        const bonus = Math.max(0, selectionChain.length - 3) * 50;
-        const pts = (selectionChain.length * 100) + bonus;
-        score += pts;
-        
-        // Animate Score
-        scoreEl.innerText = score.toLocaleString();
-        scoreEl.parentElement.style.transform = "scale(1.2)";
-        setTimeout(() => scoreEl.parentElement.style.transform = "scale(1)", 200);
+        score += chain.length * 10;
+        scoreEl.textContent = score;
+        AudioSys.playSuccess();
+        if(navigator.vibrate) navigator.vibrate([10, 30]);
 
-        // Explode
-        selectionChain.forEach(orb => {
-            const cx = orb.x + OFFSET_X;
-            const cy = orb.y + OFFSET_Y;
-            const color = THEMES[orb.type].color;
-            for(let i=0; i<6; i++) particles.push(new Spark(cx, cy, color));
-            
-            grid[orb.c][orb.r] = null;
+        // Particles & Clear
+        chain.forEach(o => {
+            const cx = o.x + OFF_X;
+            const cy = o.y + OFF_Y;
+            for(let i=0; i<5; i++) particles.push(new Particle(cx, cy, THEMES[o.type].c));
+            grid[o.c][o.r] = null;
         });
 
-        // Drop logic
-        for (let c = 0; c < COLS; c++) {
-            let nextR = ROWS - 1;
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (grid[c][r]) {
-                    const o = grid[c][r];
-                    grid[c][r] = null;
-                    grid[c][nextR] = o;
-                    o.r = nextR;
-                    nextR--;
-                }
-            }
-            // Spawn new
-            for (let r = nextR; r >= 0; r--) {
-                const newOrb = new Orb(c, r);
-                newOrb.y = -(ROWS * TILE_SIZE) - (Math.random() * 200); // Stagger spawn
-                grid[c][r] = newOrb;
-            }
-        }
-
-    } else {
-        // Fail / Cancel
-        // Just reset, maybe a small "thud" sound?
-    }
-    
-    selectionChain = [];
-}
-
-// Interaction Listeners
-['mousedown', 'touchstart'].forEach(evt => 
-    canvas.addEventListener(evt, e => {
-        e.preventDefault();
-        const p = e.touches ? e.touches[0] : e;
-        handleStart(p.clientX, p.clientY);
-    }, {passive: false})
-);
-
-['mousemove', 'touchmove'].forEach(evt => 
-    canvas.addEventListener(evt, e => {
-        e.preventDefault();
-        const p = e.touches ? e.touches[0] : e;
-        handleMove(p.clientX, p.clientY);
-    }, {passive: false})
-);
-
-['mouseup', 'touchend'].forEach(evt => 
-    canvas.addEventListener(evt, handleEnd)
-);
-
-// Main Loop
-function loop() {
-    requestAnimationFrame(loop);
-    time++;
-
-    // 1. Clear & Background
-    // Dark gradient background
-    const grad = ctx.createLinearGradient(0, 0, 0, height);
-    grad.addColorStop(0, '#0f0c            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            z-index: 10;
-            pointer-events: auto;
-            transition: opacity 0.5s;
-        }
-
-        h1 {
-            color: #fff;
-            font-size: 3rem;
-            margin-bottom: 10px;
-            text-shadow: 0 0 20px #ff00de, 0 0 40px #00ffff;
-        }
-
-        p {
-            color: #ddd;
-            font-size: 1.2rem;
-            margin-bottom: 30px;
-        }
-
-        button {
-            background: linear-gradient(45deg, #ff00de, #00ffff);
-            border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
-            color: white;
-            font-size: 1.5rem;
-            font-family: 'Nunito', sans-serif;
-            font-weight: bold;
-            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.4);
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        button:active {
-            transform: scale(0.95);
-        }
-
-        .hidden {
-            opacity: 0;
-            pointer-events: none !important;
-        }
-    </style>
-</head>
-<body>
-
-    <canvas id="gameCanvas"></canvas>
-
-    <div id="ui-layer">
-        <div class="score-container">
-            <div id="label">Score</div>
-            <div id="score">0</div>
-        </div>
-    </div>
-
-    <div id="overlay">
-        <h1>Lumina Link</h1>
-        <p>Connect 3 or more colors!</p>
-        <button id="startBtn">PLAY</button>
-    </div>
-
-<script>
-/** 
- * AUDIO SYSTEM (Web Audio API) 
- * Generates procedural sounds to avoid external assets.
- */
-const AudioSys = {
-    ctx: null,
-    bgmNodes: [],
-    
-    init() {
-        window.AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.ctx = new AudioContext();
-    },
-
-    startBGM() {
-        if (!this.ctx) this.init();
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-        
-        // Simple Ambient Drone
-        const createDrone = (freq, type) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = type;
-            osc.frequency.value = freq;
-            gain.gain.value = 0.03;
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            osc.start();
-            
-            // LFO for movement
-            const lfo = this.ctx.createOscillator();
-            lfo.frequency.value = 0.1;
-            const lfoGain = this.ctx.createGain();
-            lfoGain.gain.value = 50; 
-            lfo.connect(lfoGain);
-            lfoGain.connect(osc.frequency);
-            lfo.start();
-
-            this.bgmNodes.push(osc, gain, lfo, lfoGain);
-        };
-
-        createDrone(150, 'sine'); // Low
-        createDrone(220, 'triangle'); // Mid
-    },
-
-    playPop(pitchNorm) {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        // Pitch rises with combo length
-        const freq = 300 + (pitchNorm * 600);
-        
-        osc.frequency.setValueAtTime(freq, t);
-        osc.frequency.exponentialRampToValueAtTime(freq * 2, t + 0.1);
-        
-        gain.gain.setValueAtTime(0.3, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(t + 0.2);
-    },
-
-    playClear() {
-        if (!this.ctx) return;
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, t);
-        osc.frequency.linearRampToValueAtTime(1200, t + 0.3);
-        
-        gain.gain.setValueAtTime(0.2, t);
-        gain.gain.linearRampToValueAtTime(0, t + 0.5);
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(t + 0.5);
-    }
-};
-
-/**
- * GAME ENGINE & LOGIC
- */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-
-// Pastel Colors (HSLA)
-const PALETTE = [
-    { h: 330, s: 90, l: 75, color: 'hsla(330, 90%, 75%, 1)', glow: 'hsla(330, 100%, 60%, 0.8)' }, // Pink
-    { h: 180, s: 80, l: 70, color: 'hsla(180, 80%, 70%, 1)', glow: 'hsla(180, 100%, 60%, 0.8)' }, // Cyan
-    { h: 45, s: 90, l: 70, color: 'hsla(45, 90%, 70%, 1)', glow: 'hsla(45, 100%, 50%, 0.8)' },   // Gold
-    { h: 260, s: 80, l: 75, color: 'hsla(260, 80%, 75%, 1)', glow: 'hsla(260, 100%, 65%, 0.8)' }, // Purple
-    { h: 120, s: 70, l: 75, color: 'hsla(120, 70%, 75%, 1)', glow: 'hsla(120, 100%, 60%, 0.8)' }  // Green
-];
-
-// Configuration
-let COLS = 6;
-let ROWS = 8;
-let TILE_SIZE = 0;
-let OFFSET_X = 0;
-let OFFSET_Y = 0;
-
-// Game State
-let grid = [];
-let particles = [];
-let selectionChain = [];
-let isDragging = false;
-let score = 0;
-let time = 0;
-
-// Setup Canvas Size
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
-    // Calculate grid dimensions
-    TILE_SIZE = Math.min(canvas.width / COLS, canvas.height / (ROWS + 2)); 
-    const gridWidth = TILE_SIZE * COLS;
-    const gridHeight = TILE_SIZE * ROWS;
-    
-    OFFSET_X = (canvas.width - gridWidth) / 2;
-    OFFSET_Y = (canvas.height - gridHeight) / 2 + (TILE_SIZE * 0.5);
-}
-
-// Entity: Jelly Character
-class Jelly {
-    constructor(c, r) {
-        this.c = c;
-        this.r = r;
-        this.type = Math.floor(Math.random() * PALETTE.length);
-        
-        // Physics / Animation vars
-        this.x = c * TILE_SIZE + TILE_SIZE/2;
-        this.y = -TILE_SIZE * 2; // Spawn above screen
-        this.targetY = r * TILE_SIZE + TILE_SIZE/2;
-        this.vy = 0;
-        
-        this.scaleX = 1;
-        this.scaleY = 1;
-        this.blinkTimer = Math.random() * 200;
-        
-        // Idle float offset
-        this.phase = Math.random() * Math.PI * 2;
-    }
-
-    update() {
-        // Falling Physics
-        this.targetY = this.r * TILE_SIZE + TILE_SIZE/2;
-        const dy = this.targetY - this.y;
-        
-        if (Math.abs(dy) > 1) {
-            this.y += dy * 0.15; // Smooth slide
-            // Squish effect on landing
-            if (Math.abs(dy) < 5 && this.scaleY === 1) {
-                this.scaleX = 1.2;
-                this.scaleY = 0.8;
-            }
-        } else {
-            this.y = this.targetY;
-            // Elasticity recovery
-            this.scaleX += (1 - this.scaleX) * 0.1;
-            this.scaleY += (1 - this.scaleY) * 0.1;
-        }
-
-        // Idle Animation
-        this.blinkTimer--;
-        if (this.blinkTimer < 0) this.blinkTimer = 100 + Math.random() * 200;
-    }
-
-    draw(ctx, isSelected) {
-        const cx = this.x + OFFSET_X;
-        // Add subtle floating bounce
-        const cy = this.y + OFFSET_Y + Math.sin(time * 0.05 + this.phase) * 3;
-        
-        const size = (TILE_SIZE * 0.38) * (isSelected ? 1.1 : 1);
-        const style = PALETTE[this.type];
-
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(this.scaleX, this.scaleY);
-
-        // Reflection (Bottom)
-        ctx.save();
-        ctx.scale(1, -0.6); // Flip vertical and squash
-        ctx.translate(0, -size * 3.5);
-        ctx.globalAlpha = 0.15;
-        ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
-        ctx.fillStyle = style.color;
-        ctx.fill();
-        ctx.restore();
-
-        // Glow
-        if (isSelected) {
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = style.glow;
-        } else {
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = style.glow;
-        }
-
-        // Body
-        ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(-size*0.3, -size*0.3, size*0.2, 0, 0, size);
-        grad.addColorStop(0, '#fff'); // Highlight
-        grad.addColorStop(0.3, style.color);
-        grad.addColorStop(1, style.color);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Inner Shine (Glossy look)
-        ctx.shadowBlur = 0; // Turn off shadow for face details
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.beginPath();
-        ctx.ellipse(-size*0.3, -size*0.3, size*0.25, size*0.15, Math.PI/4, 0, Math.PI*2);
-        ctx.fill();
-
-        // Face
-        ctx.fillStyle = '#fff';
-        const eyeOffset = size * 0.3;
-        const eyeSize = size * 0.12;
-
-        // Eyes
-        if (this.blinkTimer < 10) {
-            // Blink
-            ctx.fillRect(-eyeOffset - eyeSize, -eyeSize/2, eyeSize*2, 2);
-            ctx.fillRect(eyeOffset - eyeSize, -eyeSize/2, eyeSize*2, 2);
-        } else {
-            ctx.beginPath();
-            ctx.arc(-eyeOffset, -eyeSize, eyeSize, 0, Math.PI*2);
-            ctx.arc(eyeOffset, -eyeSize, eyeSize, 0, Math.PI*2);
-            ctx.fill();
-        }
-
-        // Mouth (changes based on selection)
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        if (isSelected) {
-            ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI * 2); // 'O' mouth
-        } else {
-            ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI); // Smile
-        }
-        ctx.stroke();
-
-        ctx.restore();
-    }
-}
-
-// Particle System
-class Particle {
-    constructor(x, y, color) {
-        this.x = x;
-        this.y = y;
-        this.color = color;
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 5 + 2;
-        this.vx = Math.cos(angle) * speed;
-        this.vy = Math.sin(angle) * speed;
-        this.life = 1.0;
-        this.decay = Math.random() * 0.03 + 0.01;
-        this.size = Math.random() * 6 + 2;
-    }
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += 0.2; // Gravity
-        this.life -= this.decay;
-    }
-    draw(ctx) {
-        ctx.globalAlpha = this.life;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-    }
-}
-
-function initGrid() {
-    grid = [];
-    for (let c = 0; c < COLS; c++) {
-        let col = [];
-        for (let r = 0; r < ROWS; r++) {
-            col.push(new Jelly(c, r));
-        }
-        grid.push(col);
-    }
-}
-
-function getGridPos(px, py) {
-    const rx = px - OFFSET_X;
-    const ry = py - OFFSET_Y;
-    
-    if (rx < 0 || rx > COLS * TILE_SIZE || ry < 0 || ry > ROWS * TILE_SIZE) return null;
-    
-    const c = Math.floor(rx / TILE_SIZE);
-    const r = Math.floor(ry / TILE_SIZE);
-    return {c, r};
-}
-
-function isValidNeighbor(last, curr) {
-    const dc = Math.abs(last.c - curr.c);
-    const dr = Math.abs(last.r - curr.r);
-    // Allow diagonals? Let's stick to orthogonal and diagonal (all 8 neighbors) for smoothness
-    return dc <= 1 && dr <= 1 && !(dc === 0 && dr === 0);
-}
-
-// --- Input Handling ---
-function handleInputStart(x, y) {
-    isDragging = true;
-    const pos = getGridPos(x, y);
-    if (pos) {
-        const item = grid[pos.c][pos.r];
-        if (item) {
-            selectionChain = [item];
-            AudioSys.playPop(0);
-        }
-    }
-}
-
-function handleInputMove(x, y) {
-    if (!isDragging) return;
-    const pos = getGridPos(x, y);
-    if (!pos) return;
-
-    const item = grid[pos.c][pos.r];
-    if (!item) return;
-
-    const lastItem = selectionChain[selectionChain.length - 1];
-
-    // Case 1: Backtracking (undo selection)
-    if (selectionChain.length > 1 && selectionChain[selectionChain.length - 2] === item) {
-        selectionChain.pop();
-        AudioSys.playPop(selectionChain.length / 10);
-        return;
-    }
-
-    // Case 2: New valid connection
-    if (item.type === lastItem.type && !selectionChain.includes(item)) {
-        if (isValidNeighbor(lastItem, item)) {
-            selectionChain.push(item);
-            // Trigger bouncy animation
-            item.scaleX = 1.3;
-            item.scaleY = 0.7;
-            AudioSys.playPop(selectionChain.length / 10);
-        }
-    }
-}
-
-function handleInputEnd() {
-    isDragging = false;
-    
-    if (selectionChain.length >= 3) {
-        // MATCH!
-        const scoreGain = selectionChain.length * 10 + (selectionChain.length - 3) * 20;
-        score += scoreGain;
-        
-        // Update UI
-        scoreEl.innerText = score;
-        scoreEl.style.transform = "scale(1.2)";
-        setTimeout(() => scoreEl.style.transform = "scale(1)", 150);
-
-        AudioSys.playClear();
-
-        // Remove items and spawn particles
-        selectionChain.forEach(item => {
-            // Spawn particles
-            const cx = item.x + OFFSET_X;
-            const cy = item.y + OFFSET_Y;
-            for(let i=0; i<8; i++) {
-                particles.push(new Particle(cx, cy, PALETTE[item.type].color));
-            }
-            
-            // Mark for removal (we handle this by shifting columns)
-            grid[item.c][item.r] = null;
-        });
-
-        // Apply Gravity
-        for (let c = 0; c < COLS; c++) {
-            let nextR = ROWS - 1;
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (grid[c][r] !== null) {
-                    const temp = grid[c][r];
+        // Drop
+        for(let c=0; c<COLS; c++) {
+            let nextR = ROWS-1;
+            for(let r=ROWS-1; r>=0; r--) {
+                if(grid[c][r]) {
+                    let temp = grid[c][r];
                     grid[c][r] = null;
                     grid[c][nextR] = temp;
                     temp.r = nextR;
                     nextR--;
                 }
             }
-            // Fill empty spaces at top
-            for (let r = nextR; r >= 0; r--) {
-                const newItem = new Jelly(c, r);
-                // Start way above
-                newItem.y = -TILE_SIZE * 2 - (nextR - r) * TILE_SIZE; 
-                grid[c][r] = newItem;
+            // Spawn
+            for(let r=nextR; r>=0; r--) {
+                const o = new Orb(c, r);
+                o.y = -200 - (Math.random()*200);
+                grid[c][r] = o;
             }
         }
-
-    } else {
-        // Reset chain
-        selectionChain = [];
     }
-    selectionChain = [];
+    chain = [];
 }
 
-// Event Listeners
-canvas.addEventListener('mousedown', e => handleInputStart(e.clientX, e.clientY));
-canvas.addEventListener('mousemove', e => handleInputMove(e.clientX, e.clientY));
-canvas.addEventListener('mouseup', handleInputEnd);
-
-canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    handleInputStart(e.touches[0].clientX, e.touches[0].clientY);
-}, {passive: false});
-canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    handleInputMove(e.touches[0].clientX, e.touches[0].clientY);
-}, {passive: false});
-canvas.addEventListener('touchend', handleInputEnd);
-
-// --- Main Loop ---
+// Loop
 function loop() {
+    requestAnimationFrame(loop);
     time++;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Dynamic Background
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    bgGrad.addColorStop(0, '#1a1a2e');
-    bgGrad.addColorStop(1, '#16213e');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw Connector Line
-    if (selectionChain.length > 0) {
-        ctx.save();
-        ctx.lineJoin = 'round';
+    
+    // BG
+    ctx.fillStyle = '#0f0c29';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Draw Line
+    if (chain.length > 1) {
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         ctx.lineWidth = TILE_SIZE * 0.15;
+        ctx.strokeStyle = THEMES[chain[0].type].c;
         ctx.shadowBlur = 20;
-        ctx.shadowColor = PALETTE[selectionChain[0].type].glow;
-        ctx.strokeStyle = PALETTE[selectionChain[0].type].color;
+        ctx.shadowColor = ctx.strokeStyle;
         
         ctx.beginPath();
-        selectionChain.forEach((item, index) => {
-            const cx = item.x + OFFSET_X;
-            const cy = item.y + OFFSET_Y; // Use current animated Y
-            if (index === 0) ctx.moveTo(cx, cy);
+        chain.forEach((o, i) => {
+            const cx = o.x + OFF_X;
+            const cy = o.y + OFF_Y;
+            if(i===0) ctx.moveTo(cx, cy);
             else ctx.lineTo(cx, cy);
         });
         ctx.stroke();
-        ctx.restore();
+        ctx.shadowBlur = 0;
     }
 
-    // Update & Draw Jellys
-    for (let c = 0; c < COLS; c++) {
-        for (let r = 0; r < ROWS; r++) {
-            const jelly = grid[c][r];
-            if (jelly) {
-                jelly.update();
-                const isSelected = selectionChain.includes(jelly);
-                jelly.draw(ctx, isSelected);
+    // Orbs
+    for(let c=0; c<COLS; c++){
+        for(let r=0; r<ROWS; r++){
+            if(grid[c][r]) {
+                grid[c][r].update();
+                grid[c][r].draw(ctx);
             }
         }
     }
 
-    // Update & Draw Particles
-    for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.update();
-        p.draw(ctx);
-        if (p.life <= 0) particles.splice(i, 1);
+    // Particles
+    for(let i=particles.length-1; i>=0; i--){
+        particles[i].update();
+        particles[i].draw(ctx);
+        if(particles[i].life <= 0) particles.splice(i, 1);
     }
-
-    requestAnimationFrame(loop);
 }
 
-// Initializing
+// Setup
 window.addEventListener('resize', resize);
 resize();
 initGrid();
 
-// Start Button logic
-const startBtn = document.getElementById('startBtn');
+// Start Logic
+const btn = document.getElementById('startBtn');
 const overlay = document.getElementById('overlay');
 
-startBtn.addEventListener('click', () => {
+function startGame(e) {
+    if(e) e.preventDefault();
+    if(isGameRunning) return; // prevent double start
+    
     overlay.classList.add('hidden');
-    AudioSys.startBGM();
-    loop();
-});
+    isGameRunning = true;
+    
+    AudioSys.init(); // Try to start audio
+    loop(); // Start visual loop
+}
+
+btn.addEventListener('click', startGame);
+btn.addEventListener('touchstart', startGame, {passive: false});
+
+// Game Inputs
+canvas.addEventListener('mousedown', inputStart);
+canvas.addEventListener('mousemove', inputMove);
+canvas.addEventListener('mouseup', inputEnd);
+
+canvas.addEventListener('touchstart', inputStart, {passive: false});
+canvas.addEventListener('touchmove', inputMove, {passive: false});
+canvas.addEventListener('touchend', inputEnd, {passive: false});
 
 </script>
 </body>
