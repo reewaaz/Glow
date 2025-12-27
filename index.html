@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lumina Link</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a2e;
+            font-family: 'Nunito', sans-serif;
+            touch-action: none; /* Prevent scrolling */
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .score-container {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        #score {
+            font-size: 3rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        #label {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.7;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 10;
+            pointer-events: auto;
+            transition: opacity 0.5s;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #ff00de, 0 0 40px #00ffff;
+        }
+
+        p {
+            color: #ddd;
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff00de, #00ffff);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            color: white;
+            font-size: 1.5rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: bold;
+            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.4);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div class="score-container">
+            <div id="label">Score</div>
+            <div id="score">0</div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1>Lumina Link</h1>
+        <p>Connect 3 or more colors!</p>
+        <button id="startBtn">PLAY</button>
+    </div>
+
+<script>
+/** 
+ * AUDIO SYSTEM (Web Audio API) 
+ * Generates procedural sounds to avoid external assets.
+ */
+const AudioSys = {
+    ctx: null,
+    bgmNodes: [],
+    
+    init() {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+
+    startBGM() {
+        if (!this.ctx) this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        // Simple Ambient Drone
+        const createDrone = (freq, type) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.value = 0.03;
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            
+            // LFO for movement
+            const lfo = this.ctx.createOscillator();
+            lfo.frequency.value = 0.1;
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.value = 50; 
+            lfo.connect(lfoGain);
+            lfoGain.connect(osc.frequency);
+            lfo.start();
+
+            this.bgmNodes.push(osc, gain, lfo, lfoGain);
+        };
+
+        createDrone(150, 'sine'); // Low
+        createDrone(220, 'triangle'); // Mid
+    },
+
+    playPop(pitchNorm) {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        // Pitch rises with combo length
+        const freq = 300 + (pitchNorm * 600);
+        
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 2, t + 0.1);
+        
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(t + 0.2);
+    },
+
+    playClear() {
+        if (!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.linearRampToValueAtTime(1200, t + 0.3);
+        
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.5);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(t + 0.5);
+    }
+};
+
+/**
+ * GAME ENGINE & LOGIC
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+
+// Pastel Colors (HSLA)
+const PALETTE = [
+    { h: 330, s: 90, l: 75, color: 'hsla(330, 90%, 75%, 1)', glow: 'hsla(330, 100%, 60%, 0.8)' }, // Pink
+    { h: 180, s: 80, l: 70, color: 'hsla(180, 80%, 70%, 1)', glow: 'hsla(180, 100%, 60%, 0.8)' }, // Cyan
+    { h: 45, s: 90, l: 70, color: 'hsla(45, 90%, 70%, 1)', glow: 'hsla(45, 100%, 50%, 0.8)' },   // Gold
+    { h: 260, s: 80, l: 75, color: 'hsla(260, 80%, 75%, 1)', glow: 'hsla(260, 100%, 65%, 0.8)' }, // Purple
+    { h: 120, s: 70, l: 75, color: 'hsla(120, 70%, 75%, 1)', glow: 'hsla(120, 100%, 60%, 0.8)' }  // Green
+];
+
+// Configuration
+let COLS = 6;
+let ROWS = 8;
+let TILE_SIZE = 0;
+let OFFSET_X = 0;
+let OFFSET_Y = 0;
+
+// Game State
+let grid = [];
+let particles = [];
+let selectionChain = [];
+let isDragging = false;
+let score = 0;
+let time = 0;
+
+// Setup Canvas Size
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Calculate grid dimensions
+    TILE_SIZE = Math.min(canvas.width / COLS, canvas.height / (ROWS + 2)); 
+    const gridWidth = TILE_SIZE * COLS;
+    const gridHeight = TILE_SIZE * ROWS;
+    
+    OFFSET_X = (canvas.width - gridWidth) / 2;
+    OFFSET_Y = (canvas.height - gridHeight) / 2 + (TILE_SIZE * 0.5);
+}
+
+// Entity: Jelly Character
+class Jelly {
+    constructor(c, r) {
+        this.c = c;
+        this.r = r;
+        this.type = Math.floor(Math.random() * PALETTE.length);
+        
+        // Physics / Animation vars
+        this.x = c * TILE_SIZE + TILE_SIZE/2;
+        this.y = -TILE_SIZE * 2; // Spawn above screen
+        this.targetY = r * TILE_SIZE + TILE_SIZE/2;
+        this.vy = 0;
+        
+        this.scaleX = 1;
+        this.scaleY = 1;
+        this.blinkTimer = Math.random() * 200;
+        
+        // Idle float offset
+        this.phase = Math.random() * Math.PI * 2;
+    }
+
+    update() {
+        // Falling Physics
+        this.targetY = this.r * TILE_SIZE + TILE_SIZE/2;
+        const dy = this.targetY - this.y;
+        
+        if (Math.abs(dy) > 1) {
+            this.y += dy * 0.15; // Smooth slide
+            // Squish effect on landing
+            if (Math.abs(dy) < 5 && this.scaleY === 1) {
+                this.scaleX = 1.2;
+                this.scaleY = 0.8;
+            }
+        } else {
+            this.y = this.targetY;
+            // Elasticity recovery
+            this.scaleX += (1 - this.scaleX) * 0.1;
+            this.scaleY += (1 - this.scaleY) * 0.1;
+        }
+
+        // Idle Animation
+        this.blinkTimer--;
+        if (this.blinkTimer < 0) this.blinkTimer = 100 + Math.random() * 200;
+    }
+
+    draw(ctx, isSelected) {
+        const cx = this.x + OFFSET_X;
+        // Add subtle floating bounce
+        const cy = this.y + OFFSET_Y + Math.sin(time * 0.05 + this.phase) * 3;
+        
+        const size = (TILE_SIZE * 0.38) * (isSelected ? 1.1 : 1);
+        const style = PALETTE[this.type];
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(this.scaleX, this.scaleY);
+
+        // Reflection (Bottom)
+        ctx.save();
+        ctx.scale(1, -0.6); // Flip vertical and squash
+        ctx.translate(0, -size * 3.5);
+        ctx.globalAlpha = 0.15;
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fillStyle = style.color;
+        ctx.fill();
+        ctx.restore();
+
+        // Glow
+        if (isSelected) {
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = style.glow;
+        } else {
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = style.glow;
+        }
+
+        // Body
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        const grad = ctx.createRadialGradient(-size*0.3, -size*0.3, size*0.2, 0, 0, size);
+        grad.addColorStop(0, '#fff'); // Highlight
+        grad.addColorStop(0.3, style.color);
+        grad.addColorStop(1, style.color);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Inner Shine (Glossy look)
+        ctx.shadowBlur = 0; // Turn off shadow for face details
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(-size*0.3, -size*0.3, size*0.25, size*0.15, Math.PI/4, 0, Math.PI*2);
+        ctx.fill();
+
+        // Face
+        ctx.fillStyle = '#fff';
+        const eyeOffset = size * 0.3;
+        const eyeSize = size * 0.12;
+
+        // Eyes
+        if (this.blinkTimer < 10) {
+            // Blink
+            ctx.fillRect(-eyeOffset - eyeSize, -eyeSize/2, eyeSize*2, 2);
+            ctx.fillRect(eyeOffset - eyeSize, -eyeSize/2, eyeSize*2, 2);
+        } else {
+            ctx.beginPath();
+            ctx.arc(-eyeOffset, -eyeSize, eyeSize, 0, Math.PI*2);
+            ctx.arc(eyeOffset, -eyeSize, eyeSize, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Mouth (changes based on selection)
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (isSelected) {
+            ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI * 2); // 'O' mouth
+        } else {
+            ctx.arc(0, size * 0.1, size * 0.15, 0, Math.PI); // Smile
+        }
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+// Particle System
+class Particle {
+    constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.03 + 0.01;
+        this.size = Math.random() * 6 + 2;
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.2; // Gravity
+        this.life -= this.decay;
+    }
+    draw(ctx) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function initGrid() {
+    grid = [];
+    for (let c = 0; c < COLS; c++) {
+        let col = [];
+        for (let r = 0; r < ROWS; r++) {
+            col.push(new Jelly(c, r));
+        }
+        grid.push(col);
+    }
+}
+
+function getGridPos(px, py) {
+    const rx = px - OFFSET_X;
+    const ry = py - OFFSET_Y;
+    
+    if (rx < 0 || rx > COLS * TILE_SIZE || ry < 0 || ry > ROWS * TILE_SIZE) return null;
+    
+    const c = Math.floor(rx / TILE_SIZE);
+    const r = Math.floor(ry / TILE_SIZE);
+    return {c, r};
+}
+
+function isValidNeighbor(last, curr) {
+    const dc = Math.abs(last.c - curr.c);
+    const dr = Math.abs(last.r - curr.r);
+    // Allow diagonals? Let's stick to orthogonal and diagonal (all 8 neighbors) for smoothness
+    return dc <= 1 && dr <= 1 && !(dc === 0 && dr === 0);
+}
+
+// --- Input Handling ---
+function handleInputStart(x, y) {
+    isDragging = true;
+    const pos = getGridPos(x, y);
+    if (pos) {
+        const item = grid[pos.c][pos.r];
+        if (item) {
+            selectionChain = [item];
+            AudioSys.playPop(0);
+        }
+    }
+}
+
+function handleInputMove(x, y) {
+    if (!isDragging) return;
+    const pos = getGridPos(x, y);
+    if (!pos) return;
+
+    const item = grid[pos.c][pos.r];
+    if (!item) return;
+
+    const lastItem = selectionChain[selectionChain.length - 1];
+
+    // Case 1: Backtracking (undo selection)
+    if (selectionChain.length > 1 && selectionChain[selectionChain.length - 2] === item) {
+        selectionChain.pop();
+        AudioSys.playPop(selectionChain.length / 10);
+        return;
+    }
+
+    // Case 2: New valid connection
+    if (item.type === lastItem.type && !selectionChain.includes(item)) {
+        if (isValidNeighbor(lastItem, item)) {
+            selectionChain.push(item);
+            // Trigger bouncy animation
+            item.scaleX = 1.3;
+            item.scaleY = 0.7;
+            AudioSys.playPop(selectionChain.length / 10);
+        }
+    }
+}
+
+function handleInputEnd() {
+    isDragging = false;
+    
+    if (selectionChain.length >= 3) {
+        // MATCH!
+        const scoreGain = selectionChain.length * 10 + (selectionChain.length - 3) * 20;
+        score += scoreGain;
+        
+        // Update UI
+        scoreEl.innerText = score;
+        scoreEl.style.transform = "scale(1.2)";
+        setTimeout(() => scoreEl.style.transform = "scale(1)", 150);
+
+        AudioSys.playClear();
+
+        // Remove items and spawn particles
+        selectionChain.forEach(item => {
+            // Spawn particles
+            const cx = item.x + OFFSET_X;
+            const cy = item.y + OFFSET_Y;
+            for(let i=0; i<8; i++) {
+                particles.push(new Particle(cx, cy, PALETTE[item.type].color));
+            }
+            
+            // Mark for removal (we handle this by shifting columns)
+            grid[item.c][item.r] = null;
+        });
+
+        // Apply Gravity
+        for (let c = 0; c < COLS; c++) {
+            let nextR = ROWS - 1;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (grid[c][r] !== null) {
+                    const temp = grid[c][r];
+                    grid[c][r] = null;
+                    grid[c][nextR] = temp;
+                    temp.r = nextR;
+                    nextR--;
+                }
+            }
+            // Fill empty spaces at top
+            for (let r = nextR; r >= 0; r--) {
+                const newItem = new Jelly(c, r);
+                // Start way above
+                newItem.y = -TILE_SIZE * 2 - (nextR - r) * TILE_SIZE; 
+                grid[c][r] = newItem;
+            }
+        }
+
+    } else {
+        // Reset chain
+        selectionChain = [];
+    }
+    selectionChain = [];
+}
+
+// Event Listeners
+canvas.addEventListener('mousedown', e => handleInputStart(e.clientX, e.clientY));
+canvas.addEventListener('mousemove', e => handleInputMove(e.clientX, e.clientY));
+canvas.addEventListener('mouseup', handleInputEnd);
+
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    handleInputStart(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: false});
+canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    handleInputMove(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: false});
+canvas.addEventListener('touchend', handleInputEnd);
+
+// --- Main Loop ---
+function loop() {
+    time++;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dynamic Background
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGrad.addColorStop(0, '#1a1a2e');
+    bgGrad.addColorStop(1, '#16213e');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Connector Line
+    if (selectionChain.length > 0) {
+        ctx.save();
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.lineWidth = TILE_SIZE * 0.15;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = PALETTE[selectionChain[0].type].glow;
+        ctx.strokeStyle = PALETTE[selectionChain[0].type].color;
+        
+        ctx.beginPath();
+        selectionChain.forEach((item, index) => {
+            const cx = item.x + OFFSET_X;
+            const cy = item.y + OFFSET_Y; // Use current animated Y
+            if (index === 0) ctx.moveTo(cx, cy);
+            else ctx.lineTo(cx, cy);
+        });
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Update & Draw Jellys
+    for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS; r++) {
+            const jelly = grid[c][r];
+            if (jelly) {
+                jelly.update();
+                const isSelected = selectionChain.includes(jelly);
+                jelly.draw(ctx, isSelected);
+            }
+        }
+    }
+
+    // Update & Draw Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        p.draw(ctx);
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    requestAnimationFrame(loop);
+}
+
+// Initializing
+window.addEventListener('resize', resize);
+resize();
+initGrid();
+
+// Start Button logic
+const startBtn = document.getElementById('startBtn');
+const overlay = document.getElementById('overlay');
+
+startBtn.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    AudioSys.startBGM();
+    loop();
+});
+
+</script>
+</body>
+</html>
